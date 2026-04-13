@@ -11,13 +11,13 @@ import type { Message } from "./conversation-thread"
 
 export function Dashboard() {
   const [activeSection, setActiveSection] = useState<SectionId | null>(null)
-  const [sectionStatuses, setSectionStatuses] = useState<Record<SectionId, SectionStatus>>(
+  const [sectionStatuses, setSectionStatuses] = useState<Record<SectionId, SectionStatus>>(() =>
     Object.fromEntries(SECTION_IDS.map((id) => [id, "idle"])) as Record<SectionId, SectionStatus>
   )
-  const [sectionData, setSectionData] = useState<Record<SectionId, string | null>>(
+  const [sectionData, setSectionData] = useState<Record<SectionId, string | null>>(() =>
     Object.fromEntries(SECTION_IDS.map((id) => [id, null])) as Record<SectionId, string | null>
   )
-  const [sectionErrors, setSectionErrors] = useState<Record<SectionId, string | null>>(
+  const [sectionErrors, setSectionErrors] = useState<Record<SectionId, string | null>>(() =>
     Object.fromEntries(SECTION_IDS.map((id) => [id, null])) as Record<SectionId, string | null>
   )
   const [conversationMessages, setConversationMessages] = useState<Record<SectionId, Message[]>>(() =>
