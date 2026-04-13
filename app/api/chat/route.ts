@@ -16,6 +16,9 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
+    console.log("[v0] API Key present:", !!apiKey);
+    console.log("[v0] API Key first 10 chars:", apiKey?.substring(0, 10));
+    
     if (!apiKey) {
       return new Response(
         JSON.stringify({ error: { message: "ANTHROPIC_API_KEY not configured on server" } }),
@@ -37,6 +40,7 @@ export async function POST(req: Request) {
     });
 
     const data = await response.json();
+    console.log("[v0] Anthropic response status:", response.status);
 
     return new Response(JSON.stringify(data), {
       status: response.status,
@@ -49,6 +53,7 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    console.log("[v0] Error in /api/chat:", errorMessage);
     return new Response(JSON.stringify({ error: { message: errorMessage } }), {
       status: 500,
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
