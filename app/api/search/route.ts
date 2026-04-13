@@ -66,7 +66,6 @@ async function searchBrave(query: string, apiKey: string): Promise<SearchResult[
     )
     
     if (!response.ok) {
-      console.log("[v0] Brave search failed:", response.status)
       return []
     }
     
@@ -76,8 +75,7 @@ async function searchBrave(query: string, apiKey: string): Promise<SearchResult[
       url: r.url,
       snippet: r.description
     }))
-  } catch (err) {
-    console.log("[v0] Brave search error:", err)
+  } catch {
     return []
   }
 }
@@ -99,7 +97,6 @@ async function searchTavily(query: string, apiKey: string): Promise<SearchResult
     })
     
     if (!response.ok) {
-      console.log("[v0] Tavily search failed:", response.status)
       return []
     }
     
@@ -109,8 +106,7 @@ async function searchTavily(query: string, apiKey: string): Promise<SearchResult
       url: r.url,
       snippet: r.content?.substring(0, 300) || ""
     }))
-  } catch (err) {
-    console.log("[v0] Tavily search error:", err)
+  } catch {
     return []
   }
 }
@@ -204,7 +200,6 @@ export async function POST(req: Request) {
     
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error"
-    console.log("[v0] Search error:", errorMessage)
     return new Response(JSON.stringify({ error: errorMessage, results: [] }), {
       status: 500,
       headers: { "Content-Type": "application/json" }
