@@ -20,10 +20,10 @@ export function Dashboard() {
   const [sectionErrors, setSectionErrors] = useState<Record<SectionId, string | null>>(
     Object.fromEntries(SECTION_IDS.map((id) => [id, null])) as Record<SectionId, string | null>
   )
-  const [conversationMessages, setConversationMessages] = useState<Record<SectionId, Message[]>>(
+  const [conversationMessages, setConversationMessages] = useState<Record<SectionId, Message[]>>(() =>
     Object.fromEntries(SECTION_IDS.map((id) => [id, []])) as Record<SectionId, Message[]>
   )
-  const [conversationLoading, setConversationLoading] = useState<Record<SectionId, boolean>>(
+  const [conversationLoading, setConversationLoading] = useState<Record<SectionId, boolean>>(() =>
     Object.fromEntries(SECTION_IDS.map((id) => [id, false])) as Record<SectionId, boolean>
   )
   const [customFocus, setCustomFocus] = useState("")
