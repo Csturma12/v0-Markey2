@@ -1,5 +1,4 @@
 // Anthropic API proxy route
-export const runtime = "edge";
 
 export async function OPTIONS() {
   return new Response(null, {
