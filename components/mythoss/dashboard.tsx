@@ -21,7 +21,7 @@ export function Dashboard() {
     Object.fromEntries(SECTION_IDS.map((id) => [id, null])) as Record<SectionId, string | null>
   )
   const [conversationMessages, setConversationMessages] = useState<Record<SectionId, Message[]>>(() =>
-    Object.fromEntries(SECTION_IDS.map((id) => [id, []])) as Record<SectionId, Message[]>
+    Object.fromEntries(SECTION_IDS.map((id) => [id, []])) as unknown as Record<SectionId, Message[]>
   )
   const [conversationLoading, setConversationLoading] = useState<Record<SectionId, boolean>>(() =>
     Object.fromEntries(SECTION_IDS.map((id) => [id, false])) as Record<SectionId, boolean>
