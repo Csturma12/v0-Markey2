@@ -7,6 +7,7 @@ import { Welcome } from "./welcome"
 import { AnalysisPanel } from "./analysis-panel"
 import { MobileSidebar } from "./mobile-sidebar"
 import { SECTIONS, SECTION_IDS, type SectionId, type SectionStatus } from "@/lib/sections"
+import type { Message } from "./conversation-thread"
 
 export function Dashboard() {
   const [activeSection, setActiveSection] = useState<SectionId | null>(null)
@@ -18,6 +19,12 @@ export function Dashboard() {
   )
   const [sectionErrors, setSectionErrors] = useState<Record<SectionId, string | null>>(
     Object.fromEntries(SECTION_IDS.map((id) => [id, null])) as Record<SectionId, string | null>
+  )
+  const [conversationMessages, setConversationMessages] = useState<Record<SectionId, Message[]>>(
+    Object.fromEntries(SECTION_IDS.map((id) => [id, []])) as Record<SectionId, Message[]>
+  )
+  const [conversationLoading, setConversationLoading] = useState<Record<SectionId, boolean>>(
+    Object.fromEntries(SECTION_IDS.map((id) => [id, false])) as Record<SectionId, boolean>
   )
   const [customFocus, setCustomFocus] = useState("")
   const [fullScanProgress, setFullScanProgress] = useState<number | null>(null)
@@ -71,6 +78,82 @@ export function Dashboard() {
     []
   )
 
+  const handleSendMessage = useCallback(
+    async (sectionId: SectionId, userMessage: string) => {
+      if (!userMessage.trim()) return
+
+      const section = SECTIONS[sectionId]
+      if (!section) return
+
+      // Add user message to conversation
+      setConversationMessages((prev) => ({
+        ...prev,
+        [sectionId]: [...prev[sectionId], { role: "user", content: userMessage }],
+      }))
+
+      setConversationLoading((prev) => ({ ...prev, [sectionId]: true }))
+
+      try {
+        // Build message history with original analysis context
+        const allMessages = [
+          { role: "user" as const, content: section.prompt },
+          { role: "assistant" as const, content: sectionData[sectionId] || "" },
+          ...conversationMessages[sectionId],
+          { role: "user" as const, content: userMessage },
+        ]
+
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 1000,
+            messages: allMessages,
+          }),
+        })
+
+        const json = await res.json()
+
+        if (json.error) {
+          throw new Error(json.error.message || JSON.stringify(json.error))
+        }
+
+        const text = (json.content || [])
+          .filter((b: { type: string }) => b.type === "text")
+          .map((b: { text: string }) => b.text)
+          .join("\n")
+
+        if (!text) {
+          throw new Error("Empty response from API")
+        }
+
+        // Add assistant response to conversation
+        setConversationMessages((prev) => ({
+          ...prev,
+          [sectionId]: [...prev[sectionId], { role: "assistant", content: text }],
+        }))
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Unknown error"
+        console.error("[v0] Error in conversation:", errorMessage)
+
+        // Add error message to conversation
+        setConversationMessages((prev) => ({
+          ...prev,
+          [sectionId]: [
+            ...prev[sectionId],
+            {
+              role: "assistant",
+              content: `Error: ${errorMessage}. Please try again or refresh the analysis.`,
+            },
+          ],
+        }))
+      } finally {
+        setConversationLoading((prev) => ({ ...prev, [sectionId]: false }))
+      }
+    },
+    [sectionData, conversationMessages]
+  )
+
   const selectSection = useCallback(
     (id: SectionId, autoRun = true) => {
       setActiveSection(id)
@@ -105,6 +188,7 @@ export function Dashboard() {
   const refreshCurrent = useCallback(() => {
     if (activeSection) {
       setSectionData((prev) => ({ ...prev, [activeSection]: null }))
+      setConversationMessages((prev) => ({ ...prev, [activeSection]: [] }))
       runSection(activeSection, customFocus)
     }
   }, [activeSection, customFocus, runSection])
@@ -112,6 +196,7 @@ export function Dashboard() {
   const runCustom = useCallback(() => {
     if (activeSection) {
       setSectionData((prev) => ({ ...prev, [activeSection]: null }))
+      setConversationMessages((prev) => ({ ...prev, [activeSection]: [] }))
       runSection(activeSection, customFocus)
     }
   }, [activeSection, customFocus, runSection])
@@ -163,6 +248,9 @@ export function Dashboard() {
               content={sectionData[activeSection]}
               error={sectionErrors[activeSection]}
               onRefresh={refreshCurrent}
+              conversationMessages={conversationMessages[activeSection] || []}
+              onSendMessage={(msg) => handleSendMessage(activeSection, msg)}
+              isConversationLoading={conversationLoading[activeSection] || false}
             />
           ) : null}
         </main>
