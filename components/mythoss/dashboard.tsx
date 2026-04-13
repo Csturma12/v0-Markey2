@@ -38,15 +38,50 @@ export function Dashboard() {
       setSectionStatuses((prev) => ({ ...prev, [id]: "loading" }))
       setSectionErrors((prev) => ({ ...prev, [id]: null }))
 
-      const prompt = customText ? `${section.prompt}\n\nAdditional focus from user: ${customText}` : section.prompt
-
       try {
+        // Step 1: Fetch real-time market data from web search
+        let marketContext = ""
+        try {
+          const searchRes = await fetch("/api/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              sectionId: id,
+              customQuery: customText || null
+            }),
+          })
+          
+          const searchData = await searchRes.json()
+          
+          if (searchData.results && searchData.results.length > 0) {
+            marketContext = `\n\n--- REAL-TIME MARKET DATA (fetched ${new Date().toLocaleString()}) ---\n`
+            marketContext += searchData.results
+              .map((r: { title: string; snippet: string; url: string }) => 
+                `**${r.title}**\n${r.snippet}\nSource: ${r.url}`
+              )
+              .join("\n\n")
+            marketContext += "\n--- END MARKET DATA ---\n"
+          }
+        } catch (searchErr) {
+          console.log("[v0] Search failed, continuing without real-time data:", searchErr)
+        }
+
+        // Step 2: Build prompt with market context
+        let prompt = section.prompt
+        if (marketContext) {
+          prompt = `${section.prompt}\n\nIMPORTANT: Use the following REAL-TIME market data I've gathered to inform your analysis. Reference specific data points, prices, and news from these sources:\n${marketContext}`
+        }
+        if (customText) {
+          prompt += `\n\nAdditional focus from user: ${customText}`
+        }
+
+        // Step 3: Call AI with enriched prompt
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             model: "claude-sonnet-4-20250514",
-            max_tokens: 1000,
+            max_tokens: 2000,
             messages: [{ role: "user", content: prompt }],
           }),
         })
@@ -94,12 +129,40 @@ export function Dashboard() {
       setConversationLoading((prev) => ({ ...prev, [sectionId]: true }))
 
       try {
+        // Search for relevant data based on user question
+        let searchContext = ""
+        try {
+          const searchRes = await fetch("/api/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              sectionId: sectionId,
+              customQuery: userMessage
+            }),
+          })
+          const searchData = await searchRes.json()
+          
+          if (searchData.results && searchData.results.length > 0) {
+            searchContext = `\n\n[REAL-TIME DATA for this question]:\n`
+            searchContext += searchData.results
+              .slice(0, 5)
+              .map((r: { title: string; snippet: string }) => `- ${r.title}: ${r.snippet}`)
+              .join("\n")
+          }
+        } catch {
+          // Continue without search data
+        }
+
         // Build message history with original analysis context
+        const enrichedMessage = searchContext 
+          ? `${userMessage}\n${searchContext}`
+          : userMessage
+
         const allMessages = [
           { role: "user" as const, content: section.prompt },
           { role: "assistant" as const, content: sectionData[sectionId] || "" },
           ...conversationMessages[sectionId],
-          { role: "user" as const, content: userMessage },
+          { role: "user" as const, content: enrichedMessage },
         ]
 
         const res = await fetch("/api/chat", {
@@ -107,7 +170,7 @@ export function Dashboard() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             model: "claude-sonnet-4-20250514",
-            max_tokens: 1000,
+            max_tokens: 1500,
             messages: allMessages,
           }),
         })
@@ -134,7 +197,6 @@ export function Dashboard() {
         }))
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Unknown error"
-        console.error("[v0] Error in conversation:", errorMessage)
 
         // Add error message to conversation
         setConversationMessages((prev) => ({
