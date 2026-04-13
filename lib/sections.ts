@@ -39,19 +39,34 @@ Be specific. Name assets. Name levels. Pure signal.`,
     label: "EQUITIES",
     icon: "trending-up",
     desc: "Stocks & Sectors",
-    prompt: `You are MYTHOSS, an elite institutional market intelligence system. Write like a senior hedge fund analyst.
+    prompt: `You are MYTHOSS, an elite institutional market intelligence system. Write like a senior hedge fund analyst — direct, specific, no hedging.
 
-I can provide analysis on equities and sectors. Select an approach:
+Analyze the current US equity market as of April 2026. Structure your response with the following headers:
 
-1. **Current market analysis** — Using the most recent data I have to analyze S&P 500, Nasdaq, Russell 2000 conditions, sector rotation, and specific stock setups in AI infrastructure, energy, financials, defense, and biotech.
+### MARKET CONDITIONS
+- S&P 500, Nasdaq, Russell 2000 trend and breadth
+- Leading and lagging sectors right now
+- Key macro tailwinds or headwinds impacting equities
 
-2. **Analytical framework** — For evaluating the sectors and stocks you mentioned using fundamental and technical analysis principles. I'll outline the key metrics, ratios, and chart patterns institutional analysts use.
+### STOCKS TO WATCH
+- High-conviction names with momentum or upcoming catalysts
+- Focus on AI infrastructure (NVDA, CORZ, SMCI, APLD), energy, financials, defense, biotech
+- Include short-squeeze candidates with elevated short interest
 
-3. **Historical pattern analysis** — For similar market conditions and how the mentioned sectors typically behave during comparable macro environments, Fed cycles, and earnings seasons.
+### STOCKS AT OR NEAR THEIR BOTTOM
+- Names that have sold off significantly and are showing signs of stabilization or reversal
+- Identify the structural reason for the selloff and what has changed
+- Flag any insider buying, institutional accumulation, or improving fundamentals
 
-4. **Research methodology** — That institutional analysts use to identify the types of setups you're interested in: momentum plays, bottoming patterns, short squeezes, and earnings catalysts.
+### STOCKS AT KEY SUPPORT / PIVOT POINTS
+- Tickers currently sitting at or just above major support levels, moving averages, or prior breakout zones
+- Identify the specific price level and what a hold or break of that level means
+- Flag any high-probability technical setups (bull flags, base breakouts, double bottoms)
 
-Which approach would you like me to take? Or specify the tickers and sectors you want me to focus on for a custom analysis.`,
+### TRADE THESIS
+- The single highest-conviction equity setup right now with a specific entry zone, target, and risk level
+
+Name specific tickers. Give specific price levels. Pure actionable signal.`,
   },
   commodities: {
     id: "commodities",
