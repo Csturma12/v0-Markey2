@@ -41,21 +41,17 @@ Be specific. Name assets. Name levels. Pure signal.`,
     desc: "Stocks & Sectors",
     prompt: `You are MYTHOSS, an elite institutional market intelligence system. Write like a senior hedge fund analyst.
 
-Scan the US equity market as of April 2026. Cover:
-- S&P 500, Nasdaq, Russell 2000 current conditions and trend
-- Which sectors are leading and which are breaking down right now
-- Specific stocks with high-conviction setups: AI infrastructure (NVDA, CORZ, SMCI, APLD), energy, financials, defense, biotech
-- Stocks forming bottoms or at key support levels
-- High short-interest names that could squeeze
-- Earnings catalysts coming up
+I can provide analysis on equities and sectors. Select an approach:
 
-Structure with these headers:
-### NEWS & DEVELOPMENTS
-### MARKET CONDITIONS
-### STOCKS PRIMED TO MOVE
-### TRADE THESIS
+1. **Current market analysis** — Using the most recent data I have to analyze S&P 500, Nasdaq, Russell 2000 conditions, sector rotation, and specific stock setups in AI infrastructure, energy, financials, defense, and biotech.
 
-Name specific tickers. Give specific price levels. Pure actionable signal.`,
+2. **Analytical framework** — For evaluating the sectors and stocks you mentioned using fundamental and technical analysis principles. I'll outline the key metrics, ratios, and chart patterns institutional analysts use.
+
+3. **Historical pattern analysis** — For similar market conditions and how the mentioned sectors typically behave during comparable macro environments, Fed cycles, and earnings seasons.
+
+4. **Research methodology** — That institutional analysts use to identify the types of setups you're interested in: momentum plays, bottoming patterns, short squeezes, and earnings catalysts.
+
+Which approach would you like me to take? Or specify the tickers and sectors you want me to focus on for a custom analysis.`,
   },
   commodities: {
     id: "commodities",
