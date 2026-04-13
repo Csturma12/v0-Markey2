@@ -1,0 +1,16 @@
+{
+  "name": "MYTHOSS - Market Intelligence",
+  "short_name": "MYTHOSS",
+  "description": "Elite institutional market intelligence system",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0804",
+  "theme_color": "#0a0804",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
