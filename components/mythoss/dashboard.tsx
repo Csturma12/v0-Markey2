@@ -7,17 +7,24 @@ import { Welcome } from "./welcome"
 import { AnalysisPanel } from "./analysis-panel"
 import { MobileSidebar } from "./mobile-sidebar"
 import { SECTIONS, SECTION_IDS, type SectionId, type SectionStatus } from "@/lib/sections"
+import type { Message } from "./conversation-thread"
 
 export function Dashboard() {
   const [activeSection, setActiveSection] = useState<SectionId | null>(null)
-  const [sectionStatuses, setSectionStatuses] = useState<Record<SectionId, SectionStatus>>(
+  const [sectionStatuses, setSectionStatuses] = useState<Record<SectionId, SectionStatus>>(() =>
     Object.fromEntries(SECTION_IDS.map((id) => [id, "idle"])) as Record<SectionId, SectionStatus>
   )
-  const [sectionData, setSectionData] = useState<Record<SectionId, string | null>>(
+  const [sectionData, setSectionData] = useState<Record<SectionId, string | null>>(() =>
     Object.fromEntries(SECTION_IDS.map((id) => [id, null])) as Record<SectionId, string | null>
   )
-  const [sectionErrors, setSectionErrors] = useState<Record<SectionId, string | null>>(
+  const [sectionErrors, setSectionErrors] = useState<Record<SectionId, string | null>>(() =>
     Object.fromEntries(SECTION_IDS.map((id) => [id, null])) as Record<SectionId, string | null>
+  )
+  const [conversationMessages, setConversationMessages] = useState<Record<SectionId, Message[]>>(() =>
+    Object.fromEntries(SECTION_IDS.map((id) => [id, []])) as unknown as Record<SectionId, Message[]>
+  )
+  const [conversationLoading, setConversationLoading] = useState<Record<SectionId, boolean>>(() =>
+    Object.fromEntries(SECTION_IDS.map((id) => [id, false])) as Record<SectionId, boolean>
   )
   const [customFocus, setCustomFocus] = useState("")
   const [fullScanProgress, setFullScanProgress] = useState<number | null>(null)
@@ -31,15 +38,50 @@ export function Dashboard() {
       setSectionStatuses((prev) => ({ ...prev, [id]: "loading" }))
       setSectionErrors((prev) => ({ ...prev, [id]: null }))
 
-      const prompt = customText ? `${section.prompt}\n\nAdditional focus from user: ${customText}` : section.prompt
-
       try {
+        // Step 1: Fetch real-time market data from web search
+        let marketContext = ""
+        try {
+          const searchRes = await fetch("/api/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              sectionId: id,
+              customQuery: customText || null
+            }),
+          })
+          
+          const searchData = await searchRes.json()
+          
+          if (searchData.results && searchData.results.length > 0) {
+            marketContext = `\n\n--- REAL-TIME MARKET DATA (fetched ${new Date().toLocaleString()}) ---\n`
+            marketContext += searchData.results
+              .map((r: { title: string; snippet: string; url: string }) => 
+                `**${r.title}**\n${r.snippet}\nSource: ${r.url}`
+              )
+              .join("\n\n")
+            marketContext += "\n--- END MARKET DATA ---\n"
+          }
+        } catch (searchErr) {
+          console.log("[v0] Search failed, continuing without real-time data:", searchErr)
+        }
+
+        // Step 2: Build prompt with market context
+        let prompt = section.prompt
+        if (marketContext) {
+          prompt = `${section.prompt}\n\nIMPORTANT: Use the following REAL-TIME market data I've gathered to inform your analysis. Reference specific data points, prices, and news from these sources:\n${marketContext}`
+        }
+        if (customText) {
+          prompt += `\n\nAdditional focus from user: ${customText}`
+        }
+
+        // Step 3: Call AI with enriched prompt
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             model: "claude-sonnet-4-20250514",
-            max_tokens: 1000,
+            max_tokens: 2000,
             messages: [{ role: "user", content: prompt }],
           }),
         })
@@ -69,6 +111,109 @@ export function Dashboard() {
       }
     },
     []
+  )
+
+  const handleSendMessage = useCallback(
+    async (sectionId: SectionId, userMessage: string) => {
+      if (!userMessage.trim()) return
+
+      const section = SECTIONS[sectionId]
+      if (!section) return
+
+      // Add user message to conversation
+      setConversationMessages((prev) => ({
+        ...prev,
+        [sectionId]: [...prev[sectionId], { role: "user", content: userMessage }],
+      }))
+
+      setConversationLoading((prev) => ({ ...prev, [sectionId]: true }))
+
+      try {
+        // Search for relevant data based on user question
+        let searchContext = ""
+        try {
+          const searchRes = await fetch("/api/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              sectionId: sectionId,
+              customQuery: userMessage
+            }),
+          })
+          const searchData = await searchRes.json()
+          
+          if (searchData.results && searchData.results.length > 0) {
+            searchContext = `\n\n[REAL-TIME DATA for this question]:\n`
+            searchContext += searchData.results
+              .slice(0, 5)
+              .map((r: { title: string; snippet: string }) => `- ${r.title}: ${r.snippet}`)
+              .join("\n")
+          }
+        } catch {
+          // Continue without search data
+        }
+
+        // Build message history with original analysis context
+        const enrichedMessage = searchContext 
+          ? `${userMessage}\n${searchContext}`
+          : userMessage
+
+        const allMessages = [
+          { role: "user" as const, content: section.prompt },
+          { role: "assistant" as const, content: sectionData[sectionId] || "" },
+          ...conversationMessages[sectionId],
+          { role: "user" as const, content: enrichedMessage },
+        ]
+
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 1500,
+            messages: allMessages,
+          }),
+        })
+
+        const json = await res.json()
+
+        if (json.error) {
+          throw new Error(json.error.message || JSON.stringify(json.error))
+        }
+
+        const text = (json.content || [])
+          .filter((b: { type: string }) => b.type === "text")
+          .map((b: { text: string }) => b.text)
+          .join("\n")
+
+        if (!text) {
+          throw new Error("Empty response from API")
+        }
+
+        // Add assistant response to conversation
+        setConversationMessages((prev) => ({
+          ...prev,
+          [sectionId]: [...prev[sectionId], { role: "assistant", content: text }],
+        }))
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Unknown error"
+
+        // Add error message to conversation
+        setConversationMessages((prev) => ({
+          ...prev,
+          [sectionId]: [
+            ...prev[sectionId],
+            {
+              role: "assistant",
+              content: `Error: ${errorMessage}. Please try again or refresh the analysis.`,
+            },
+          ],
+        }))
+      } finally {
+        setConversationLoading((prev) => ({ ...prev, [sectionId]: false }))
+      }
+    },
+    [sectionData, conversationMessages]
   )
 
   const selectSection = useCallback(
@@ -105,6 +250,7 @@ export function Dashboard() {
   const refreshCurrent = useCallback(() => {
     if (activeSection) {
       setSectionData((prev) => ({ ...prev, [activeSection]: null }))
+      setConversationMessages((prev) => ({ ...prev, [activeSection]: [] }))
       runSection(activeSection, customFocus)
     }
   }, [activeSection, customFocus, runSection])
@@ -112,6 +258,7 @@ export function Dashboard() {
   const runCustom = useCallback(() => {
     if (activeSection) {
       setSectionData((prev) => ({ ...prev, [activeSection]: null }))
+      setConversationMessages((prev) => ({ ...prev, [activeSection]: [] }))
       runSection(activeSection, customFocus)
     }
   }, [activeSection, customFocus, runSection])
@@ -163,6 +310,9 @@ export function Dashboard() {
               content={sectionData[activeSection]}
               error={sectionErrors[activeSection]}
               onRefresh={refreshCurrent}
+              conversationMessages={conversationMessages[activeSection] || []}
+              onSendMessage={(msg) => handleSendMessage(activeSection, msg)}
+              isConversationLoading={conversationLoading[activeSection] || false}
             />
           ) : null}
         </main>
